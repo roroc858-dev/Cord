@@ -7,40 +7,65 @@ export async function GET() {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const servers = await prisma.server.findMany({
-    where: { members: { some: { userId: user.id } } },
-    include: { channels: { take: 5 }, _count: { select: { members: true } } },
-    orderBy: { updatedAt: "desc" },
-  });
+  try {
+    const servers = await prisma.server.findMany({
+      where: { members: { some: { userId: user.id } } },
+      include: {
+        channels: { orderBy: { createdAt: "asc" } },
+        members: {
+          select: {
+            role: true,
+            user: { select: { id: true, username: true, displayName: true, presence: true } },
+          },
+          orderBy: { joinedAt: "asc" },
+        },
+        _count: { select: { members: true } },
+      },
+      orderBy: { updatedAt: "desc" },
+    });
 
-  return NextResponse.json({ servers });
+    return NextResponse.json({ servers });
+  } catch (error) {
+    console.error("list servers route error", error);
+    return NextResponse.json({ error: "Unable to load your servers right now." }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON request body." }, { status: 400 });
+  }
   const parsed = createServerSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid server payload." }, { status: 400 });
   }
 
-  const server = await prisma.server.create({
-    data: {
-      name: parsed.data.name,
-      description: parsed.data.description,
-      isPublic: parsed.data.isPublic,
-      ownerId: user.id,
-      members: {
-        create: [{ userId: user.id, role: "OWNER" }],
+  try {
+    const server = await prisma.server.create({
+      data: {
+        name: parsed.data.name,
+        description: parsed.data.description,
+        isPublic: parsed.data.isPublic,
+        ownerId: user.id,
+        members: {
+          create: [{ userId: user.id, role: "OWNER" }],
+        },
+        channels: {
+          create: [{ name: "general", type: "TEXT" }],
+        },
       },
-      channels: {
-        create: [{ name: "general", type: "TEXT" }],
-      },
-    },
-    include: { channels: true },
-  });
+      include: { channels: true },
+    });
 
-  return NextResponse.json({ server }, { status: 201 });
+    return NextResponse.json({ server }, { status: 201 });
+  } catch (error) {
+    console.error("create server route error", error);
+    return NextResponse.json({ error: "Unable to create your server right now." }, { status: 500 });
+  }
 }

@@ -24,22 +24,26 @@ export default function RegisterPage() {
       password: String(form.get("password") ?? ""),
     };
 
-    const response = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
 
-    const data = await response.json();
-    setLoading(false);
+      if (!response.ok) {
+        setError(data.error ?? "Could not create account.");
+        return;
+      }
 
-    if (!response.ok) {
-      setError(data.error ?? "Could not create account.");
-      return;
+      setSuccess("Account created. You can now log in.");
+      setTimeout(() => router.push("/login"), 800);
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Could not connect. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    setSuccess("Account created. You can now log in.");
-    setTimeout(() => router.push("/login"), 800);
   }
 
   return (
@@ -65,14 +69,14 @@ export default function RegisterPage() {
             </label>
             <label>
               Username
-              <input name="username" type="text" autoComplete="username" placeholder="jane_community" required />
+              <input name="username" type="text" autoComplete="username" placeholder="jane_community" minLength={3} maxLength={24} required />
             </label>
             <label>
               Password
-              <input name="password" type="password" autoComplete="new-password" placeholder="At least 10 characters" required />
+              <input name="password" type="password" autoComplete="new-password" placeholder="At least 10 characters" minLength={10} maxLength={128} required />
             </label>
-            {error ? <div className="auth-error">{error}</div> : null}
-            {success ? <div className="auth-success">{success}</div> : null}
+            {error ? <div className="auth-error" role="alert">{error}</div> : null}
+            {success ? <div className="auth-success" role="status">{success}</div> : null}
             <button type="submit" disabled={loading}>{loading ? "Creating account…" : "Create account"}</button>
           </form>
           <div className="auth-switch">Already a member? <Link href="/login">Log in</Link></div>

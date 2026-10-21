@@ -1,24 +1,26 @@
 # Cord voice and video setup
 
-Real-time media calls need external infrastructure. Cord includes the architecture hooks for WebRTC and Socket.IO signaling, but the service should only be considered operational once STUN/TURN credentials are configured.
+Community voice/video calls use LiveKit rooms. Cord's authenticated web API issues short-lived participant tokens scoped to a member's voice channel; browsers connect to LiveKit directly. The LiveKit API secret is never sent to the browser.
 
 ## Recommended production setup
 
-- STUN/TURN: Twilio, LiveKit, or a self-hosted coturn setup
-- Signaling: Socket.IO with authenticated room joins
-- SFU: LiveKit for scalable multi-user rooms
-- Browser signaling: WebRTC offer/answer exchange through secure authenticated Socket.IO events
+- Media service: LiveKit Cloud or a self-hosted LiveKit server
+- Signaling and SFU: provided by LiveKit for community rooms
+- Realtime chat/typing/presence: separate authenticated Socket.IO service; this is independent of media call signaling
 
-## Required environment values
+## Required environment variables
 
-Set the following values in `.env.local`:
+Set these values in `.env.local` and in the production web service:
 
 ```env
-TURN_SERVER_URL=turn:turn.example.com:3478
-TURN_SERVER_USERNAME=cord
-TURN_SERVER_CREDENTIAL=replace-me
+NEXT_PUBLIC_LIVEKIT_URL=wss://your-project.livekit.cloud
+LIVEKIT_API_KEY=your-api-key
+LIVEKIT_API_SECRET=your-api-secret
 ```
 
-## Local development
+Keep `LIVEKIT_API_SECRET` private. Create a server voice channel in Cord and select it to join the associated call room. A call token can only be issued to an authenticated member of that channel.
 
-For local testing, a coturn service or a managed TURN deployment should be provided. Until those values are configured, the UI should be treated as a design and integration scaffold rather than a live calling feature.
+## Troubleshooting
+
+The call API returns a configuration error until all three values are set. If tokens are issued but connections fail, verify the public LiveKit URL, project status, browser microphone/camera permissions, and network access to LiveKit's media endpoints. For self-hosted deployments, configure the appropriate TURN and firewall/media port settings in LiveKit.
+cccccccc

@@ -21,22 +21,26 @@ export default function LoginPage() {
       password: String(form.get("password") ?? ""),
     };
 
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
 
-    const data = await response.json();
-    setLoading(false);
+      if (!response.ok) {
+        setError(data.error ?? "Could not log in.");
+        return;
+      }
 
-    if (!response.ok) {
-      setError(data.error ?? "Could not log in.");
-      return;
+      router.push("/app");
+      router.refresh();
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Could not connect. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    router.push("/app");
-    router.refresh();
   }
 
   return (
@@ -64,7 +68,7 @@ export default function LoginPage() {
               Password
               <input name="password" type="password" autoComplete="current-password" placeholder="••••••••••" required />
             </label>
-            {error ? <div className="auth-error">{error}</div> : null}
+            {error ? <div className="auth-error" role="alert">{error}</div> : null}
             <button type="submit" disabled={loading}>{loading ? "Signing in…" : "Log in"}</button>
           </form>
           <div className="auth-switch">Need an account? <Link href="/register">Create one</Link></div>

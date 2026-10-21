@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -35,33 +35,35 @@ enum FriendStatus {
 }
 
 model User {
-  id              String            @id @default(cuid())
-  email           String            @unique
-  username        String            @unique
-  displayName     String?
-  passwordHash    String
-  bio             String            @default("")
-  avatarUrl       String?
-  emailVerifiedAt DateTime?
-  presence        Presence          @default(OFFLINE)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  memberships     ServerMember[]
-  ownedServers    Server[]          @relation("ServerOwner")
-  messages        Message[]
-  friendshipsOut  Friendship[]      @relation("FriendshipFrom")
-  friendshipsIn   Friendship[]      @relation("FriendshipTo")
-  blocksOut       BlockedUser[]     @relation("Blocker")
-  blocksIn        BlockedUser[]     @relation("Blocked")
-  notifications   Notification[]
-  verificationTokens VerificationToken[]
-  passwordTokens  PasswordResetToken[]
-  attachments     MessageAttachment[]
-  reactions       MessageReaction[]
-  readStates      MessageReadState[]
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  username            String               @unique
+  displayName         String?
+  passwordHash        String
+  bio                 String               @default("")
+  avatarUrl           String?
+  emailVerifiedAt     DateTime?
+  presence            Presence             @default(OFFLINE)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  memberships         ServerMember[]
+  ownedServers        Server[]             @relation("ServerOwner")
+  messages            Message[]
+  friendshipsOut      Friendship[]         @relation("FriendshipFrom")
+  friendshipsIn       Friendship[]         @relation("FriendshipTo")
+  blocksOut           BlockedUser[]        @relation("Blocker")
+  blocksIn            BlockedUser[]        @relation("Blocked")
+  notifications       Notification[]
+  verificationTokens  VerificationToken[]
+  passwordTokens      PasswordResetToken[]
+  attachments         MessageAttachment[]
+  reactions           MessageReaction[]
+  readStates          MessageReadState[]
   conversationMembers ConversationMember[]
-  settings        UserSettings?
-  reports         Report[] @relation("Reporter")
+  settings            UserSettings?
+  reports             Report[]             @relation("Reporter")
+  directMessages      DirectMessage[]
+  uploadTickets       UploadTicket[]
 }
 
 model VerificationToken {
@@ -71,6 +73,7 @@ model VerificationToken {
   expiresAt DateTime
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
 }
 
@@ -81,6 +84,7 @@ model PasswordResetToken {
   expiresAt DateTime
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
 }
 
@@ -93,6 +97,7 @@ model Friendship {
   updatedAt DateTime     @updatedAt
   from      User         @relation("FriendshipFrom", fields: [fromId], references: [id], onDelete: Cascade)
   to        User         @relation("FriendshipTo", fields: [toId], references: [id], onDelete: Cascade)
+
   @@unique([fromId, toId])
   @@index([toId, status])
 }
@@ -104,6 +109,7 @@ model BlockedUser {
   createdAt DateTime @default(now())
   blocker   User     @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
   blocked   User     @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
   @@unique([blockerId, blockedId])
 }
 
@@ -119,6 +125,7 @@ model Server {
   members     ServerMember[]
   channels    Channel[]
   invites     ServerInvite[]
+
   @@index([isPublic, name])
 }
 
@@ -130,6 +137,7 @@ model ServerMember {
   joinedAt DateTime   @default(now())
   server   Server     @relation(fields: [serverId], references: [id], onDelete: Cascade)
   user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([serverId, userId])
   @@index([userId, joinedAt])
 }
@@ -142,65 +150,73 @@ model Channel {
   createdAt DateTime    @default(now())
   server    Server      @relation(fields: [serverId], references: [id], onDelete: Cascade)
   messages  Message[]
+
   @@unique([serverId, name])
   @@index([serverId, type])
 }
 
 model Message {
-  id        String   @id @default(cuid())
-  channelId String
-  authorId  String
-  content   String   @db.VarChar(4000)
-  replyToId String?
-  editedAt  DateTime?
-  deletedAt DateTime?
-  createdAt DateTime @default(now())
-  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  replyTo   Message? @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
-  replies   Message[] @relation("MessageReplies")
+  id          String              @id @default(cuid())
+  channelId   String
+  authorId    String
+  content     String              @db.VarChar(4000)
+  replyToId   String?
+  editedAt    DateTime?
+  deletedAt   DateTime?
+  createdAt   DateTime            @default(now())
+  channel     Channel             @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  author      User                @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  replyTo     Message?            @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies     Message[]           @relation("MessageReplies")
   attachments MessageAttachment[]
-  reactions MessageReaction[]
+  reactions   MessageReaction[]
+
   @@index([channelId, createdAt(sort: Desc)])
   @@index([authorId, createdAt(sort: Desc)])
 }
 
 model ServerInvite {
-  id        String   @id @default(cuid())
-  code      String   @unique
+  id        String    @id @default(cuid())
+  code      String    @unique
   serverId  String
   createdBy String
   expiresAt DateTime?
   maxUses   Int?
-  uses      Int      @default(0)
-  createdAt DateTime @default(now())
-  server    Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  uses      Int       @default(0)
+  createdAt DateTime  @default(now())
+  server    Server    @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
   @@index([serverId])
 }
 
 model Notification {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
   type      String
   payload   Json
   readAt    DateTime?
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId, readAt, createdAt(sort: Desc)])
 }
 
 model MessageAttachment {
-  id        String   @id @default(cuid())
-  messageId String
-  uploaderId String
-  storageKey String
-  fileName  String
-  mimeType  String
-  size      Int
-  createdAt DateTime @default(now())
-  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  uploader User     @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  id              String         @id @default(cuid())
+  messageId       String?
+  directMessageId String?
+  uploaderId      String
+  storageKey      String
+  fileName        String
+  mimeType        String
+  size            Int
+  createdAt       DateTime       @default(now())
+  message         Message?       @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  directMessage   DirectMessage? @relation(fields: [directMessageId], references: [id], onDelete: Cascade)
+  uploader        User           @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+
   @@index([messageId])
+  @@index([directMessageId])
 }
 
 model MessageReaction {
@@ -211,53 +227,91 @@ model MessageReaction {
   createdAt DateTime @default(now())
   message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([messageId, userId, emoji])
 }
 
 model MessageReadState {
-  id          String   @id @default(cuid())
-  userId      String
-  channelId   String
-  lastReadAt  DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  userId     String
+  channelId  String
+  lastReadAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([userId, channelId])
 }
 
 model DirectConversation {
-  id        String   @id @default(cuid())
-  isGroup   Boolean  @default(false)
-  createdAt DateTime @default(now())
-  members   ConversationMember[]
+  id              String               @id @default(cuid())
+  conversationKey String?              @unique
+  isGroup         Boolean              @default(false)
+  createdAt       DateTime             @default(now())
+  members         ConversationMember[]
+  messages        DirectMessage[]
 }
 
 model ConversationMember {
-  id             String            @id @default(cuid())
+  id             String             @id @default(cuid())
   conversationId String
   userId         String
-  joinedAt       DateTime          @default(now())
+  joinedAt       DateTime           @default(now())
+  lastReadAt     DateTime           @default(now())
   conversation   DirectConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([conversationId, userId])
+  @@index([userId, joinedAt])
+}
+
+model DirectMessage {
+  id             String              @id @default(cuid())
+  conversationId String
+  authorId       String
+  content        String              @db.VarChar(4000)
+  createdAt      DateTime            @default(now())
+  editedAt       DateTime?
+  deletedAt      DateTime?
+  conversation   DirectConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author         User                @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  attachments    MessageAttachment[]
+
+  @@index([conversationId, createdAt(sort: Desc)])
+  @@index([authorId, createdAt(sort: Desc)])
+}
+
+model UploadTicket {
+  id         String   @id @default(cuid())
+  userId     String
+  storageKey String   @unique
+  fileName   String
+  mimeType   String
+  size       Int
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
 }
 
 model UserSettings {
-  userId                  String  @id
-  allowFriendRequests     Boolean @default(true)
-  allowDirectMessages     Boolean @default(true)
-  emailNotifications      Boolean @default(false)
-  browserNotifications    Boolean @default(false)
-  user                    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId               String  @id
+  allowFriendRequests  Boolean @default(true)
+  allowDirectMessages  Boolean @default(true)
+  emailNotifications   Boolean @default(false)
+  browserNotifications Boolean @default(false)
+  user                 User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Report {
-  id          String   @id @default(cuid())
-  reporterId  String
-  serverId    String?
-  messageId   String?
-  reason      String   @db.VarChar(1000)
-  status      String   @default("OPEN")
-  createdAt   DateTime @default(now())
-  reporter    User     @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  reporterId String
+  serverId   String?
+  messageId  String?
+  reason     String   @db.VarChar(1000)
+  status     String   @default("OPEN")
+  createdAt  DateTime @default(now())
+  reporter   User     @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+
   @@index([status, createdAt])
 }
 
@@ -269,5 +323,6 @@ model AuditLog {
   targetId  String?
   details   Json?
   createdAt DateTime @default(now())
+
   @@index([serverId, createdAt(sort: Desc)])
 }

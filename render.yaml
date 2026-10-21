@@ -16,6 +16,26 @@ services:
         sync: false
       - key: DIRECT_URL
         sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: REALTIME_URL
+        sync: false
+      - key: NEXT_PUBLIC_LIVEKIT_URL
+        sync: false
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_BUCKET_NAME
+        value: cord-media
+      - key: S3_REGION
+        value: us-east-1
       - key: EMAIL_FROM
         sync: false
       - key: RESEND_API_KEY
@@ -25,4 +45,25 @@ services:
       - key: DEMO_USERNAME
         sync: false
       - key: DEMO_PASSWORD
+        sync: false
+  - type: web
+    name: cord-realtime
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci --include=dev && npx prisma generate
+    startCommand: npm run realtime:start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: AUTH_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: REALTIME_ALLOWED_ORIGIN
         sync: false

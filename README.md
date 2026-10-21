@@ -41,6 +41,25 @@ RESEND_API_KEY=
 
 `prisma:seed` requires `DEMO_EMAIL`, `DEMO_USERNAME`, and `DEMO_PASSWORD` in `.env.local`. Set a unique, strong password of at least 12 characters; do not use the example placeholder in production.
 
+## Realtime, calls, and uploads
+
+The authenticated workspace supports persisted server messages and direct messages, friend requests, typing indicators, online presence, read receipts, in-app notifications, and image/PDF/text attachments. Messages are delivered live through a separate Socket.IO service, with Redis pub/sub shared by the web API and realtime service.
+
+For local development, start PostgreSQL and Redis, configure `.env.local`, and run the web app and realtime service in separate terminals:
+
+```powershell
+npm run dev
+npm run realtime:dev
+```
+
+Set `REDIS_URL=redis://localhost:6379`, `REALTIME_URL=http://localhost:3001`, and `REALTIME_ALLOWED_ORIGIN=http://localhost:3000`. The realtime service validates short-lived tokens issued by the web API, and also needs the same `AUTH_SECRET` and `DATABASE_URL` as the web app.
+
+Community voice/video rooms use LiveKit. Create a LiveKit Cloud project and set `NEXT_PUBLIC_LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET`; the API secret must remain server-side. Create a `VOICE` channel in a server to start a room. Calls cannot connect until those values point to a working LiveKit project.
+
+Attachments are uploaded directly to an S3-compatible bucket with short-lived signed URLs. Set `S3_BUCKET_NAME`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, and (for S3-compatible providers) `S3_ENDPOINT`. Allow `PUT` from the Cord web origin in the bucket's CORS policy, and allow the `Content-Type` request header. Supported files are JPEG, PNG, GIF, WebP, PDF, and plain text up to 10 MB each. Keep the bucket private; the app issues temporary download URLs only to authenticated conversation members.
+
+For Render, deploy both `cord` and `cord-realtime` from the Blueprint. Set the same `AUTH_SECRET`, database URLs, and `REDIS_URL` on both services. Set `REALTIME_URL` on `cord` to the realtime service HTTPS URL and set `REALTIME_ALLOWED_ORIGIN` on `cord-realtime` to the public Cord web URL. Configure LiveKit and S3 variables on `cord`. The Redis service is managed separately; use a Redis URL reachable from both Render services.
+
 ## Deploy to Render with Supabase
 
 1. Push this repository to GitHub and connect `roroc858-dev/Cord` to Render as a Blueprint.
@@ -54,8 +73,10 @@ Never commit `.env.local` or paste database credentials into GitHub. The `.env.e
 ## Important notes
 
 - Registration, login, and authenticated app routes are implemented with secure server-side validation and a session cookie.
-- The app is ready for a real Prisma/PostgreSQL backend. Without a database, the registration and auth routes will return a runtime error until the database is available.
-- Voice and video calls require a TURN/STUN provider and a Socket.IO signalling layer.
+- The authenticated workspace loads your servers and channels from PostgreSQL, supports creating servers and channels, and stores text messages in the database. Message history loads the latest 100 messages per channel.
+- The app requires PostgreSQL for registration, authentication, messages, friendships, and notifications.
+- Real-time updates require Redis and the separate Socket.IO service. When they are unavailable, persisted APIs still work, but live delivery and typing indicators will be offline.
+- Voice/video calls require a configured LiveKit project. File uploads require private S3-compatible object storage.
 - A production deployment should use HTTPS, a managed database, Redis, real object storage, and email delivery configured through the environment.
 
 ## Scripts
@@ -72,8 +93,9 @@ npx prisma studio
 
 ## Architecture overview
 
-- `app/` contains the landing page, login, registration, and authenticated app shell.
-- `components/` contains reusable UI pieces like the Cord mark.
+- `app/` contains the landing page, login, registration, authenticated app shell, and API route handlers.
+- `components/` contains reusable UI pieces like the Cord mark and interactive workspace.
+- `realtime/` contains the authenticated Socket.IO service for live chat, typing, and presence.
 - `lib/` contains validation, authentication helpers, Prisma access, and request utilities.
 - `prisma/` contains the Prisma schema and seed data.
 - `docker-compose.yml` provides a local PostgreSQL + Redis development stack.
